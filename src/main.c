@@ -19,7 +19,8 @@ static TextLayer *s_main_window_day_layer;
 static TextLayer *s_main_window_date_layer;
 static TextLayer *s_main_window_month_layer;
 static TextLayer *s_main_window_labs_layer;
-static TextLayer *s_ind_drug_info_layer;
+static TextLayer *s_ind_drug_info_text_layer;
+static ScrollLayer *s_ind_drug_info_scroll_layer;
 static SimpleMenuLayer *s_drugs_menu_layer;
 static SimpleMenuLayer *s_labs_menu_layer;
 static SimpleMenuSection s_drugs_menu_sections[DRUGS_NUM_SECTIONS];
@@ -39,13 +40,30 @@ static char s_drug_information[1000];
 
 //Individual drug window handlers.
 static void ind_drug_window_load(Window *window) {
-  s_ind_drug_info_layer = text_layer_create(layer_get_frame(window_get_root_layer(window)));
-  text_layer_set_text(s_ind_drug_info_layer,s_drug_information);
-  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_ind_drug_info_layer));
+  APP_LOG(APP_LOG_LEVEL_INFO,"Starting ind_drug_window_load(). Creating scroll layer and setting click configs.");
+  
+  s_ind_drug_info_scroll_layer = scroll_layer_create(layer_get_frame(window_get_root_layer(window)));
+  //Sets the up and down button actions to scrolling actions.
+  scroll_layer_set_click_config_onto_window(s_ind_drug_info_scroll_layer,window);
+  //Trims the scroll box to fit the contents of the text layer. See the scroll layer demo.
+  APP_LOG(APP_LOG_LEVEL_INFO,"Getting sizes and assigning them to variables. Then setting content size of the scroll layer.");
+  //This is where everything is crashing.
+  int16_t scroll_layer_width = layer_get_frame(window_get_root_layer(window)).size.w;
+  int16_t scroll_layer_height = text_layer_get_content_size(s_ind_drug_info_text_layer).h + 4;
+  scroll_layer_set_content_size(s_ind_drug_info_scroll_layer,GSize(scroll_layer_width,scroll_layer_height));
+  
+  APP_LOG(APP_LOG_LEVEL_INFO,"Creating text layer and setting its values.");
+  s_ind_drug_info_text_layer = text_layer_create(layer_get_frame(window_get_root_layer(window)));
+  text_layer_set_font(s_ind_drug_info_text_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text(s_ind_drug_info_text_layer,s_drug_information);
+  //Child assignment.
+  APP_LOG(APP_LOG_LEVEL_INFO,"Assigning children.");
+  scroll_layer_add_child(s_ind_drug_info_scroll_layer,text_layer_get_layer(s_ind_drug_info_text_layer));
+  layer_add_child(window_get_root_layer(window),scroll_layer_get_layer(s_ind_drug_info_scroll_layer));
 }
 
 static void ind_drug_window_unload(Window *window) {
-  text_layer_destroy(s_ind_drug_info_layer);
+  text_layer_destroy(s_ind_drug_info_text_layer);
   window_destroy(s_ind_drug_window);
 }
 
@@ -56,7 +74,10 @@ static void ind_drug_window_create(int index,void *ctx) {
   s_ind_drug_window = window_create();
   switch(index) {
     case 0:
-      strcpy(s_drug_information,"Amiodarone\nClass: Antiarrhythmic\n");
+      strcpy(s_drug_information,"Amiodarone\n\nClass: Class III Antiarrhythmic\n\nPharmacodynamics: Prolongs cardiac repolarization.\n\nIV Loading Dose: 150-450mg");
+    break;
+    case 1:
+      strcpy(s_drug_information,"Atropine\nClass: Muscarinic Anticholinergic\nPharmacodynamics: Inhibits parasympathetic activity. Treats bradycardia. No longer recommended for asystole/PEA.\nIV Dose: 0.5-1mg push");
     break;
   }
   window_set_window_handlers(s_ind_drug_window,(WindowHandlers) {.load=ind_drug_window_load,.unload=ind_drug_window_unload});
@@ -66,6 +87,8 @@ static void ind_drug_window_create(int index,void *ctx) {
 
 //Drugs window.
 static void drugs_window_load(Window *window) {
+  //Debug statement.
+  //APP_LOG(APP_LOG_LEVEL_INFO,"Drugs window load function activated.");
   //Setup counting integer.
   int drug_menu_count = 0;
   //Drug names.
@@ -74,7 +97,8 @@ static void drugs_window_load(Window *window) {
     .callback = ind_drug_window_create
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
-    .title = "Atropine"
+    .title = "Atropine",
+    .callback = ind_drug_window_create
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
     .title = "Diltiazem"
@@ -92,9 +116,11 @@ static void drugs_window_load(Window *window) {
     .items = s_drugs_menu_items
   };
   
-  
+  //Debug statement.
+  //APP_LOG(APP_LOG_LEVEL_INFO,"About to add the drug layer as a child. Current memory usage is %u. %u free.",heap_bytes_used(),heap_bytes_free());
   s_drugs_menu_layer = simple_menu_layer_create(layer_get_frame(window_get_root_layer(window)),window,s_drugs_menu_sections,DRUGS_NUM_SECTIONS,NULL);
-  layer_add_child(window_get_root_layer(window),simple_menu_layer_get_layer(s_labs_menu_layer));
+  layer_add_child(window_get_root_layer(window),simple_menu_layer_get_layer(s_drugs_menu_layer));
+  //APP_LOG(APP_LOG_LEVEL_INFO,"Added layer as child.");
 }
 
 static void drugs_window_unload(Window *window) {
@@ -270,6 +296,8 @@ static void main_window_down_click_handler(ClickRecognizerRef recognizer,void *c
 }
 
 static void main_window_up_click_handler(ClickRecognizerRef recognizer,void *context) {
+  //Debug statement.
+  //APP_LOG(APP_LOG_LEVEL_INFO,"Up handler activated.");
   //Common medications.
   s_drugs_window = window_create();
   window_set_window_handlers(s_drugs_window,(WindowHandlers) {.load=drugs_window_load,.unload=drugs_window_unload});
