@@ -1,27 +1,31 @@
 {
-    "appKeys": {},
-    "capabilities": [
-        ""
-    ],
-    "companyName": "david.lorne.olmstead@gmail.com",
-    "longName": "Clinical App",
-    "projectType": "native",
-    "resources": {
-        "media": [
-            {
-                "file": "images/Clinical App Icon.png",
-                "menuIcon": true,
-                "name": "LOGO_IMAGE",
-                "type": "png"
-            }
-        ]
-    },
-    "sdkVersion": "2",
-    "shortName": "Clinical App",
-    "uuid": "370645dd-fc04-4b7f-acb8-520280bc2690",
-    "versionCode": 1,
-    "versionLabel": "1.0",
-    "watchapp": {
-        "watchface": false
-    }
+  "appKeys": {},
+  "capabilities": [
+    ""
+  ],
+  "companyName": "david.lorne.olmstead@gmail.com",
+  "longName": "Clinical App",
+  "projectType": "native",
+  "resources": {
+    "media": [
+      {
+        "file": "images/Clinical App Icon.png",
+        "menuIcon": true,
+        "name": "LOGO_IMAGE",
+        "type": "png"
+      }
+    ]
+  },
+  "sdkVersion": "3",
+  "shortName": "Clinical App",
+  "uuid": "370645dd-fc04-4b7f-acb8-520280bc2690",
+  "versionCode": 1,
+  "versionLabel": "1.0",
+  "watchapp": {
+    "watchface": false
+  },
+  "targetPlatforms": [
+    "aplite",
+    "basalt"
+  ]
 }

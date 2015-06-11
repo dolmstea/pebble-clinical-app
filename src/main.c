@@ -1,7 +1,7 @@
 #include <pebble.h>
 
 #define DRUGS_NUM_SECTIONS 1
-#define DRUGS_NUM_ITEMS 5
+#define DRUGS_NUM_ITEMS 6
 #define LABS_NUM_SECTIONS 4
 #define LABS_BLOOD_ROWS 8
 #define LABS_LYTE_ROWS 10
@@ -18,6 +18,7 @@ static TextLayer *s_main_window_seconds_layer;
 static TextLayer *s_main_window_day_layer;
 static TextLayer *s_main_window_date_layer;
 static TextLayer *s_main_window_month_layer;
+static TextLayer *s_main_window_battery_layer;
 static TextLayer *s_main_window_labs_layer;
 static TextLayer *s_ind_drug_info_text_layer;
 static ScrollLayer *s_ind_drug_info_scroll_layer;
@@ -41,21 +42,26 @@ static char s_drug_information[1000];
 //Individual drug window handlers.
 static void ind_drug_window_load(Window *window) {
   APP_LOG(APP_LOG_LEVEL_INFO,"Starting ind_drug_window_load(). Creating scroll layer and setting click configs.");
+
+  //Initialize the TextLayer that will contain the drug information.
+  APP_LOG(APP_LOG_LEVEL_INFO,"Creating text layer and setting its values.");
+  GRect bounds = layer_get_frame(window_get_root_layer(window));
+  s_ind_drug_info_text_layer = text_layer_create(GRect(0,0,bounds.size.w,2000));
+  text_layer_set_font(s_ind_drug_info_text_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text(s_ind_drug_info_text_layer,s_drug_information);
   
+  //Create the scroll layer.
   s_ind_drug_info_scroll_layer = scroll_layer_create(layer_get_frame(window_get_root_layer(window)));
   //Sets the up and down button actions to scrolling actions.
   scroll_layer_set_click_config_onto_window(s_ind_drug_info_scroll_layer,window);
+  
   //Trims the scroll box to fit the contents of the text layer. See the scroll layer demo.
   APP_LOG(APP_LOG_LEVEL_INFO,"Getting sizes and assigning them to variables. Then setting content size of the scroll layer.");
-  //This is where everything is crashing.
-  int16_t scroll_layer_width = layer_get_frame(window_get_root_layer(window)).size.w;
-  int16_t scroll_layer_height = text_layer_get_content_size(s_ind_drug_info_text_layer).h + 4;
+  int16_t scroll_layer_width = (layer_get_frame(window_get_root_layer(window))).size.w;
+  int16_t scroll_layer_height = (text_layer_get_content_size(s_ind_drug_info_text_layer)).h + 4;
   scroll_layer_set_content_size(s_ind_drug_info_scroll_layer,GSize(scroll_layer_width,scroll_layer_height));
   
-  APP_LOG(APP_LOG_LEVEL_INFO,"Creating text layer and setting its values.");
-  s_ind_drug_info_text_layer = text_layer_create(layer_get_frame(window_get_root_layer(window)));
-  text_layer_set_font(s_ind_drug_info_text_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14));
-  text_layer_set_text(s_ind_drug_info_text_layer,s_drug_information);
+  
   //Child assignment.
   APP_LOG(APP_LOG_LEVEL_INFO,"Assigning children.");
   scroll_layer_add_child(s_ind_drug_info_scroll_layer,text_layer_get_layer(s_ind_drug_info_text_layer));
@@ -77,7 +83,7 @@ static void ind_drug_window_create(int index,void *ctx) {
       strcpy(s_drug_information,"Amiodarone\n\nClass: Class III Antiarrhythmic\n\nPharmacodynamics: Prolongs cardiac repolarization.\n\nIV Loading Dose: 150-450mg");
     break;
     case 1:
-      strcpy(s_drug_information,"Atropine\nClass: Muscarinic Anticholinergic\nPharmacodynamics: Inhibits parasympathetic activity. Treats bradycardia. No longer recommended for asystole/PEA.\nIV Dose: 0.5-1mg push");
+      strcpy(s_drug_information,"Atropine\n\nClass: Muscarinic Anticholinergic\n\nPharmacodynamics: Inhibits parasympathetic activity. Treats bradycardia. No longer recommended for asystole/PEA.\n\nIV Dose: 0.5-1mg push");
     break;
   }
   window_set_window_handlers(s_ind_drug_window,(WindowHandlers) {.load=ind_drug_window_load,.unload=ind_drug_window_unload});
@@ -101,13 +107,20 @@ static void drugs_window_load(Window *window) {
     .callback = ind_drug_window_create
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
-    .title = "Diltiazem"
+    .title = "Diltiazem",
+    .callback = ind_drug_window_create
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
-    .title = "Dobutamine"
+    .title = "Dobutamine",
+    .callback = ind_drug_window_create
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
-    .title = "Dopamine"
+    .title = "Dopamine",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Levophed (Norepinephrine)",
+    .callback = ind_drug_window_create
   };
   
   s_drugs_menu_sections[0] = (SimpleMenuSection) {
@@ -316,11 +329,12 @@ static void main_window_load(Window *window) {
   window_set_click_config_provider(s_main_window,main_window_click_config_provider);
   //Create TextLayers.
   s_main_window_params_layer = text_layer_create(GRect(0,0,144,20));
-  s_main_window_time_layer = text_layer_create(GRect(0,45,114,50));
-  s_main_window_seconds_layer = text_layer_create(GRect(120,60,24,35));
-  s_main_window_day_layer = text_layer_create(GRect(0,101,30,20));
-  s_main_window_date_layer = text_layer_create(GRect(36,101,22,20));
-  s_main_window_month_layer = text_layer_create(GRect(64,101,80,20));
+  s_main_window_time_layer = text_layer_create(GRect(0,35,114,50));
+  s_main_window_seconds_layer = text_layer_create(GRect(120,50,24,35));
+  s_main_window_day_layer = text_layer_create(GRect(0,91,30,20));
+  s_main_window_date_layer = text_layer_create(GRect(36,91,22,20));
+  s_main_window_month_layer = text_layer_create(GRect(64,91,80,20));
+  s_main_window_battery_layer = text_layer_create(GRect(124,117,15,20));
   s_main_window_labs_layer = text_layer_create(GRect(0,148,144,20));
   //Params formatting.
   text_layer_set_text(s_main_window_params_layer,"Rx");
@@ -342,6 +356,8 @@ static void main_window_load(Window *window) {
   text_layer_set_font(s_main_window_date_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   //Month formatting.
   text_layer_set_text_alignment(s_main_window_month_layer,GTextAlignmentRight);
+  //Battery number formatting.
+  text_layer_set_background_color(s_main_window_battery_layer,GColorWhite);
   //Labs formatting.
   text_layer_set_text(s_main_window_labs_layer,"Labs");
   text_layer_set_text_alignment(s_main_window_labs_layer,GTextAlignmentRight);
@@ -354,6 +370,7 @@ static void main_window_load(Window *window) {
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_day_layer));
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_date_layer));
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_month_layer));
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_battery_layer));
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_labs_layer));
 }
 
@@ -364,8 +381,13 @@ static void main_window_unload(Window *window) {
   text_layer_destroy(s_main_window_day_layer);
   text_layer_destroy(s_main_window_date_layer);
   text_layer_destroy(s_main_window_month_layer);
+  text_layer_destroy(s_main_window_battery_layer);
   text_layer_destroy(s_main_window_labs_layer);
 }
+
+//Battery handler.
+//static void battery_handler(BatteryChargeState new_state) {}
+
 
 //Time handler. For better resource management you could make two: one for seconds and one for minutes/hours.
 
@@ -403,7 +425,8 @@ static void init() {
   tick_timer_service_subscribe(SECOND_UNIT,tick_handler);
   s_main_window = window_create();
   window_set_window_handlers(s_main_window,(WindowHandlers) {.load=main_window_load,.unload=main_window_unload});
-  window_set_fullscreen(s_main_window,true);
+  //Removed this line for compliance with new SDK 3.0. On cloudpebble this isn't necessary to remove.
+  //window_set_fullscreen(s_main_window,true);
   //Display main window on screen on launch.
   window_stack_push(s_main_window,true);
   update_time();
