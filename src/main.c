@@ -1,7 +1,7 @@
 #include <pebble.h>
 
 #define DRUGS_NUM_SECTIONS 1
-#define DRUGS_NUM_ITEMS 6
+#define DRUGS_NUM_ITEMS 17
 #define LABS_NUM_SECTIONS 4
 #define LABS_BLOOD_ROWS 8
 #define LABS_LYTE_ROWS 10
@@ -12,6 +12,7 @@ static Window *s_main_window;
 static Window *s_drugs_window;
 static Window *s_ind_drug_window;
 static Window *s_labs_window;
+static Layer *s_main_window_battery_bar_layer;
 static TextLayer *s_main_window_params_layer;
 static TextLayer *s_main_window_time_layer;
 static TextLayer *s_main_window_seconds_layer;
@@ -35,6 +36,9 @@ static char s_drug_information[1000];
 
 //Ideas?
 //Code Mode.
+//Code mode brings you to a screen with a timer and time-based list of interventions.
+//Up button for drugs, down button for shock?
+//Vibrates 100bpm.
 
 //Display resolution: 144x168.
 
@@ -69,6 +73,7 @@ static void ind_drug_window_load(Window *window) {
 }
 
 static void ind_drug_window_unload(Window *window) {
+  strcpy(s_drug_information,"");
   text_layer_destroy(s_ind_drug_info_text_layer);
   window_destroy(s_ind_drug_window);
 }
@@ -84,6 +89,15 @@ static void ind_drug_window_create(int index,void *ctx) {
     break;
     case 1:
       strcpy(s_drug_information,"Atropine\n\nClass: Muscarinic Anticholinergic\n\nPharmacodynamics: Inhibits parasympathetic activity. Treats bradycardia. No longer recommended for asystole/PEA.\n\nIV Dose: 0.5-1mg push");
+    break;
+    case 2:
+      strcpy(s_drug_information,"Diltiazem (Cardizem)\n\nClass: Calcium Channel Blocker. Class IV Antiarrhythmic.\n\nPharmacodynamics: Relaxes arterial smooth muscles. Can also prolong cardiac conduction by depressing AV node conductivity. Can convert atrial arrhythmias. Negative inotrope.\n\nIV Dose: 0.25mg/kg initially.");
+    break;
+    case 3:
+      strcpy(s_drug_information,"Dobutamine\n\nClass: Inotrope\n\nPharmacodynamics: Beta-1 agonist. Increases cardiac contractility.\n\nIV Dose: 2.5-20mcg/kg/min");
+    break;
+    case 4:
+      strcpy(s_drug_information,"Dopamine\n\nClass: Inotrope\n\nPharmacodynamics: Dopaminergic agonist.\n\nIV Dose: 0-20mcg/kg/min.");
     break;
   }
   window_set_window_handlers(s_ind_drug_window,(WindowHandlers) {.load=ind_drug_window_load,.unload=ind_drug_window_unload});
@@ -108,6 +122,7 @@ static void drugs_window_load(Window *window) {
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
     .title = "Diltiazem",
+    .subtitle = "Cardizem",
     .callback = ind_drug_window_create
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
@@ -119,7 +134,55 @@ static void drugs_window_load(Window *window) {
     .callback = ind_drug_window_create
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
-    .title = "Levophed (Norepinephrine)",
+    .title = "Fentanyl",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Heparin",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Levophed",
+    .subtitle = "Norepinephrine",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Midazolam",
+    .subtitle = "Versed",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Milrinone",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Nitroglycerine",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Nitroprusside",
+    .subtitle = "Nipride",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Phenylephrine",
+    .subtitle = "Neo-Synephrine",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "PRBCs",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Propofol",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Rocuronium",
+    .callback = ind_drug_window_create
+  };
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Vasopressin",
     .callback = ind_drug_window_create
   };
   
@@ -322,6 +385,24 @@ static void main_window_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_UP,main_window_up_click_handler);
 }
 
+//Battery handler.
+static void battery_handler(BatteryChargeState charge_state) {
+  static char s_battery_buffer[4];
+  
+  if(charge_state.is_charging) {
+    snprintf(s_battery_buffer,sizeof(s_battery_buffer),"C%d",charge_state.charge_percent);
+  } else {
+    snprintf(s_battery_buffer,sizeof(s_battery_buffer),"%d%%",charge_state.charge_percent);
+  }
+  
+  text_layer_set_text(s_main_window_battery_layer,s_battery_buffer);
+}
+
+static void battery_bar_update_proc(Layer *layer,GContext *ctx) {
+  graphics_context_set_stroke_color(ctx,GColorWhite);
+  graphics_draw_line(ctx,GPoint(0,120),GPoint(50,120));
+}
+
 //Main window handler.
 
 static void main_window_load(Window *window) {
@@ -334,7 +415,8 @@ static void main_window_load(Window *window) {
   s_main_window_day_layer = text_layer_create(GRect(0,91,30,20));
   s_main_window_date_layer = text_layer_create(GRect(36,91,22,20));
   s_main_window_month_layer = text_layer_create(GRect(64,91,80,20));
-  s_main_window_battery_layer = text_layer_create(GRect(124,117,15,20));
+  s_main_window_battery_layer = text_layer_create(GRect(119,112,25,15));
+  s_main_window_battery_bar_layer = layer_create(GRect(0,112,118,15));
   s_main_window_labs_layer = text_layer_create(GRect(0,148,144,20));
   //Params formatting.
   text_layer_set_text(s_main_window_params_layer,"Rx");
@@ -357,7 +439,12 @@ static void main_window_load(Window *window) {
   //Month formatting.
   text_layer_set_text_alignment(s_main_window_month_layer,GTextAlignmentRight);
   //Battery number formatting.
-  text_layer_set_background_color(s_main_window_battery_layer,GColorWhite);
+  text_layer_set_background_color(s_main_window_battery_layer,GColorBlack);
+  text_layer_set_font(s_main_window_battery_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text_color(s_main_window_battery_layer,GColorWhite);
+  text_layer_set_text_alignment(s_main_window_battery_layer,GTextAlignmentRight);
+  //Battery bar formatting.
+  layer_set_update_proc(s_main_window_battery_bar_layer,battery_bar_update_proc);
   //Labs formatting.
   text_layer_set_text(s_main_window_labs_layer,"Labs");
   text_layer_set_text_alignment(s_main_window_labs_layer,GTextAlignmentRight);
@@ -371,7 +458,13 @@ static void main_window_load(Window *window) {
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_date_layer));
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_month_layer));
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_battery_layer));
+  layer_add_child(window_get_root_layer(window),s_main_window_battery_bar_layer);
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_labs_layer));
+  
+  //layer_mark_dirty(s_main_window_battery_bar_layer);
+  
+  //Get battery state.
+  battery_handler(battery_state_service_peek());
 }
 
 static void main_window_unload(Window *window) {
@@ -382,11 +475,11 @@ static void main_window_unload(Window *window) {
   text_layer_destroy(s_main_window_date_layer);
   text_layer_destroy(s_main_window_month_layer);
   text_layer_destroy(s_main_window_battery_layer);
+  layer_destroy(s_main_window_battery_bar_layer);
   text_layer_destroy(s_main_window_labs_layer);
 }
 
-//Battery handler.
-//static void battery_handler(BatteryChargeState new_state) {}
+
 
 
 //Time handler. For better resource management you could make two: one for seconds and one for minutes/hours.
@@ -423,6 +516,7 @@ static void tick_handler(struct tm *tick_time,TimeUnits units_changed) {
 
 static void init() {
   tick_timer_service_subscribe(SECOND_UNIT,tick_handler);
+  battery_state_service_subscribe(battery_handler);
   s_main_window = window_create();
   window_set_window_handlers(s_main_window,(WindowHandlers) {.load=main_window_load,.unload=main_window_unload});
   //Removed this line for compliance with new SDK 3.0. On cloudpebble this isn't necessary to remove.
