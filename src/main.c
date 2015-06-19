@@ -12,6 +12,7 @@ static Window *s_main_window;
 static Window *s_drugs_window;
 static Window *s_ind_drug_window;
 static Window *s_labs_window;
+static Window *s_code_window;
 static Layer *s_main_window_battery_bar_layer;
 static TextLayer *s_main_window_params_layer;
 static TextLayer *s_main_window_time_layer;
@@ -39,6 +40,8 @@ static char s_drug_information[1000];
 //Code mode brings you to a screen with a timer and time-based list of interventions.
 //Up button for drugs, down button for shock?
 //Vibrates 100bpm.
+
+//Battery bar does not work yet.
 
 //Display resolution: 144x168.
 
@@ -362,6 +365,16 @@ static void labs_window_unload(Window *window) {
   window_destroy(window);
 }
 
+//Code Window handlers.
+
+static void code_window_load(Window *window) {
+  
+}
+
+static void code_window_unload(Window *window) {
+  
+}
+
 //Click handlers.
 
 static void main_window_down_click_handler(ClickRecognizerRef recognizer,void *context) {
@@ -372,17 +385,22 @@ static void main_window_down_click_handler(ClickRecognizerRef recognizer,void *c
 }
 
 static void main_window_up_click_handler(ClickRecognizerRef recognizer,void *context) {
-  //Debug statement.
-  //APP_LOG(APP_LOG_LEVEL_INFO,"Up handler activated.");
   //Common medications.
   s_drugs_window = window_create();
   window_set_window_handlers(s_drugs_window,(WindowHandlers) {.load=drugs_window_load,.unload=drugs_window_unload});
   window_stack_push(s_drugs_window,true);
 }
 
+static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context) {
+  s_code_window = window_create();
+  window_set_window_handlers(s_code_window,(WindowHandlers) {.load=code_window_load,.unload=code_window_unload});
+  window_stack_push(s_code_window,true);
+}
+
 static void main_window_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_DOWN,main_window_down_click_handler);
   window_single_click_subscribe(BUTTON_ID_UP,main_window_up_click_handler);
+  window_long_click_subscribe(BUTTON_ID_SELECT,0,main_window_select_long_click_handler,NULL);
 }
 
 //Battery handler.
@@ -461,8 +479,6 @@ static void main_window_load(Window *window) {
   layer_add_child(window_get_root_layer(window),s_main_window_battery_bar_layer);
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_labs_layer));
   
-  //layer_mark_dirty(s_main_window_battery_bar_layer);
-  
   //Get battery state.
   battery_handler(battery_state_service_peek());
 }
@@ -520,7 +536,7 @@ static void init() {
   s_main_window = window_create();
   window_set_window_handlers(s_main_window,(WindowHandlers) {.load=main_window_load,.unload=main_window_unload});
   //Removed this line for compliance with new SDK 3.0. On cloudpebble this isn't necessary to remove.
-  //window_set_fullscreen(s_main_window,true);
+  window_set_fullscreen(s_main_window,true);
   //Display main window on screen on launch.
   window_stack_push(s_main_window,true);
   update_time();
