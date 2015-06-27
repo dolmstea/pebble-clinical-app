@@ -37,9 +37,10 @@ static SimpleMenuItem s_labs_menu_section_lytes[LABS_LYTE_ROWS];
 static SimpleMenuItem s_labs_menu_section_mols[LABS_MOL_ROWS];
 static SimpleMenuItem s_labs_menu_section_coags[LABS_COAG_ROWS];
 static char s_drug_information[1000];
+static int s_resus_timer_seconds = 0;
 
 //Function declarations.
-static void update_time();
+//static void update_time();
 
 //Ideas?
 //Code Mode.
@@ -51,6 +52,66 @@ static void update_time();
 
 //Display resolution: 144x168.
 
+//Time handlers. For better resource management you could make two: one for seconds and one for minutes/hours.
+
+static void update_time() {
+  //Create a time container and a pointer to it. Then assign it the current time.
+  time_t temp = time(NULL);
+  struct tm *tick_time = localtime(&temp);
+  
+  static char time_buffer[] = "00:00";
+  static char second_buffer[] = "00";
+  static char month_buffer[] = "September";
+  static char date_buffer[] = "00";
+  static char day_buffer[] = "Sun";
+  if(clock_is_24h_style() == true) {
+    strftime(time_buffer,sizeof("00:00"),"%H:%M",tick_time);
+  } else {
+    strftime(time_buffer,sizeof("00:00"),"%I:%M",tick_time);
+  }
+  strftime(second_buffer,sizeof("00"),"%S",tick_time);
+  strftime(month_buffer,sizeof("September"),"%B",tick_time);
+  strftime(date_buffer,sizeof("00"),"%e",tick_time);
+  strftime(day_buffer,sizeof("Sun"),"%a",tick_time);
+  
+  text_layer_set_text(s_main_window_time_layer,time_buffer);
+  text_layer_set_text(s_main_window_seconds_layer,second_buffer);
+  text_layer_set_text(s_main_window_date_layer,date_buffer);
+  text_layer_set_text(s_main_window_month_layer,month_buffer);
+  text_layer_set_text(s_main_window_day_layer,day_buffer);
+}
+
+static void resus_update_time() {
+  //This function is basically a repeat of update_time but will be subscribed in code mode so that the timer
+  //can start as soon as the window is loaded rather than when the app is loaded.
+  time_t temp = time(NULL);
+  struct tm *tick_time = localtime(&temp);
+  
+  //Format the time buffer for 24h or 12h time.
+  static char time_buffer[] = "00:00:00";
+  if(clock_is_24h_style() == true) {
+    strftime(time_buffer,sizeof("00:00:00"),"%T",tick_time);
+  } else {
+    strftime(time_buffer,sizeof("00:00:00"),"%I:%M:%S",tick_time);
+  }
+  
+  //Set the resus clock text.
+  text_layer_set_text(s_resus_clock_text_layer,time_buffer);
+  
+  //Update and increment the resus timer seconds.
+  static char timer_buffer[] = "00:00";
+  snprintf(timer_buffer,sizeof(timer_buffer),"%d:%02d",s_resus_timer_seconds / 60,s_resus_timer_seconds % 60);
+  text_layer_set_text(s_resus_timer_text_layer,timer_buffer);
+  s_resus_timer_seconds++;
+}
+
+static void tick_handler(struct tm *tick_time,TimeUnits units_changed) {
+  update_time();
+}
+
+static void resus_tick_handler(struct tm *tick_time,TimeUnits units_changed) {
+  resus_update_time();
+}
 
 //Individual drug window handlers.
 static void ind_drug_window_load(Window *window) {
@@ -374,6 +435,9 @@ static void labs_window_unload(Window *window) {
 //Code Window handlers.
 
 static void code_window_load(Window *window) {
+  //Subscribe to the special tick timer service for resuscitation (to make the timer work).
+  tick_timer_service_subscribe(SECOND_UNIT,resus_tick_handler);
+  
   window_set_background_color(window,GColorBlack);
 
   //Resuscitation screen title.
@@ -383,22 +447,25 @@ static void code_window_load(Window *window) {
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_title_text_layer));
   
   //Resuscitation timer.
-  s_resus_timer_text_layer = text_layer_create(GRect(0,25,67,20));
+  s_resus_timer_text_layer = text_layer_create(GRect(0,26,69,20));
   text_layer_set_text(s_resus_timer_text_layer,"88:88");
   text_layer_set_text_alignment(s_resus_timer_text_layer,GTextAlignmentCenter);
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_timer_text_layer));
   
   //Resuscitation real-time clock.
-  s_resus_clock_text_layer = text_layer_create(GRect(77,25,67,20));
+  s_resus_clock_text_layer = text_layer_create(GRect(75,26,69,20));
   text_layer_set_text(s_resus_clock_text_layer,"88:88:88");
   text_layer_set_text_alignment(s_resus_clock_text_layer,GTextAlignmentCenter);
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_clock_text_layer));
-  update_time();
+
+  resus_update_time();
 }
 
 static void code_window_unload(Window *window) {
   text_layer_destroy(s_resus_title_text_layer);
   window_destroy(window);
+  s_resus_timer_seconds = 0;
+  tick_timer_service_subscribe(SECOND_UNIT,tick_handler);
 }
 
 //Click handlers.
@@ -520,46 +587,6 @@ static void main_window_unload(Window *window) {
   text_layer_destroy(s_main_window_battery_layer);
   layer_destroy(s_main_window_battery_bar_layer);
   text_layer_destroy(s_main_window_labs_layer);
-}
-
-
-
-
-//Time handler. For better resource management you could make two: one for seconds and one for minutes/hours.
-
-static void update_time() {
-  //Create a time container and a pointer to it. Then assign it the current time.
-  time_t temp = time(NULL);
-  struct tm *tick_time = localtime(&temp);
-  static char time_buffer[] = "00:00";
-  static char second_buffer[] = "00";
-  static char month_buffer[] = "September";
-  static char date_buffer[] = "00";
-  static char day_buffer[] = "Sun";
-  if(clock_is_24h_style() == true) {
-    strftime(time_buffer,sizeof("00:00"),"%H:%M",tick_time);
-  } else {
-    strftime(time_buffer,sizeof("00:00"),"%I:%M",tick_time);
-  }
-  strftime(second_buffer,sizeof("00"),"%S",tick_time);
-  strftime(month_buffer,sizeof("September"),"%B",tick_time);
-  strftime(date_buffer,sizeof("00"),"%e",tick_time);
-  strftime(day_buffer,sizeof("Sun"),"%a",tick_time);
-  
-  text_layer_set_text(s_main_window_time_layer,time_buffer);
-  text_layer_set_text(s_main_window_seconds_layer,second_buffer);
-  text_layer_set_text(s_main_window_date_layer,date_buffer);
-  text_layer_set_text(s_main_window_month_layer,month_buffer);
-  text_layer_set_text(s_main_window_day_layer,day_buffer);
-  
-  //Set resus clock.
-  static char full_time_buffer[] = "00:00:00";
-  snprintf(full_time_buffer,sizeof(full_time_buffer),"%s:%s",time_buffer,second_buffer);
-  text_layer_set_text(s_resus_clock_text_layer,full_time_buffer);
-}
-
-static void tick_handler(struct tm *tick_time,TimeUnits units_changed) {
-  update_time();
 }
 
 static void init() {
