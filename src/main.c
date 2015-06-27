@@ -23,6 +23,9 @@ static TextLayer *s_main_window_month_layer;
 static TextLayer *s_main_window_battery_layer;
 static TextLayer *s_main_window_labs_layer;
 static TextLayer *s_ind_drug_info_text_layer;
+static TextLayer *s_resus_title_text_layer;
+static TextLayer *s_resus_clock_text_layer;
+static TextLayer *s_resus_timer_text_layer;
 static ScrollLayer *s_ind_drug_info_scroll_layer;
 static SimpleMenuLayer *s_drugs_menu_layer;
 static SimpleMenuLayer *s_labs_menu_layer;
@@ -34,6 +37,9 @@ static SimpleMenuItem s_labs_menu_section_lytes[LABS_LYTE_ROWS];
 static SimpleMenuItem s_labs_menu_section_mols[LABS_MOL_ROWS];
 static SimpleMenuItem s_labs_menu_section_coags[LABS_COAG_ROWS];
 static char s_drug_information[1000];
+
+//Function declarations.
+static void update_time();
 
 //Ideas?
 //Code Mode.
@@ -368,11 +374,31 @@ static void labs_window_unload(Window *window) {
 //Code Window handlers.
 
 static void code_window_load(Window *window) {
+  window_set_background_color(window,GColorBlack);
+
+  //Resuscitation screen title.
+  s_resus_title_text_layer = text_layer_create(GRect(0,0,144,20));
+  text_layer_set_text(s_resus_title_text_layer,"Resuscitation Mode");
+  text_layer_set_text_alignment(s_resus_title_text_layer,GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_title_text_layer));
   
+  //Resuscitation timer.
+  s_resus_timer_text_layer = text_layer_create(GRect(0,25,67,20));
+  text_layer_set_text(s_resus_timer_text_layer,"88:88");
+  text_layer_set_text_alignment(s_resus_timer_text_layer,GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_timer_text_layer));
+  
+  //Resuscitation real-time clock.
+  s_resus_clock_text_layer = text_layer_create(GRect(77,25,67,20));
+  text_layer_set_text(s_resus_clock_text_layer,"88:88:88");
+  text_layer_set_text_alignment(s_resus_clock_text_layer,GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_clock_text_layer));
+  update_time();
 }
 
 static void code_window_unload(Window *window) {
-  
+  text_layer_destroy(s_resus_title_text_layer);
+  window_destroy(window);
 }
 
 //Click handlers.
@@ -393,6 +419,7 @@ static void main_window_up_click_handler(ClickRecognizerRef recognizer,void *con
 
 static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context) {
   s_code_window = window_create();
+  window_set_fullscreen(s_code_window,true);
   window_set_window_handlers(s_code_window,(WindowHandlers) {.load=code_window_load,.unload=code_window_unload});
   window_stack_push(s_code_window,true);
 }
@@ -524,6 +551,11 @@ static void update_time() {
   text_layer_set_text(s_main_window_date_layer,date_buffer);
   text_layer_set_text(s_main_window_month_layer,month_buffer);
   text_layer_set_text(s_main_window_day_layer,day_buffer);
+  
+  //Set resus clock.
+  static char full_time_buffer[] = "00:00:00";
+  snprintf(full_time_buffer,sizeof(full_time_buffer),"%s:%s",time_buffer,second_buffer);
+  text_layer_set_text(s_resus_clock_text_layer,full_time_buffer);
 }
 
 static void tick_handler(struct tm *tick_time,TimeUnits units_changed) {
