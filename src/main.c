@@ -26,6 +26,10 @@ static TextLayer *s_ind_drug_info_text_layer;
 static TextLayer *s_resus_title_text_layer;
 static TextLayer *s_resus_clock_text_layer;
 static TextLayer *s_resus_timer_text_layer;
+static TextLayer *s_resus_shock_icon_text_layer;
+static TextLayer *s_resus_cpr_icon_text_layer;
+static TextLayer *s_resus_drug_icon_text_layer;
+static TextLayer *s_resus_log_text_layer;
 static ScrollLayer *s_ind_drug_info_scroll_layer;
 static SimpleMenuLayer *s_drugs_menu_layer;
 static SimpleMenuLayer *s_labs_menu_layer;
@@ -37,16 +41,14 @@ static SimpleMenuItem s_labs_menu_section_lytes[LABS_LYTE_ROWS];
 static SimpleMenuItem s_labs_menu_section_mols[LABS_MOL_ROWS];
 static SimpleMenuItem s_labs_menu_section_coags[LABS_COAG_ROWS];
 static char s_drug_information[1000];
+static char s_resus_log[1000];
 static int s_resus_timer_seconds = 0;
-
-//Function declarations.
-//static void update_time();
 
 //Ideas?
 //Code Mode.
 //Code mode brings you to a screen with a timer and time-based list of interventions.
 //Up button for drugs, down button for shock?
-//Vibrates 100bpm.
+//Vibrates 100bpm. Vibration could be toggled by the select button?
 
 //Battery bar does not work yet.
 
@@ -113,12 +115,53 @@ static void resus_tick_handler(struct tm *tick_time,TimeUnits units_changed) {
   resus_update_time();
 }
 
+//Resus mode click handlers.
+static void resus_window_up_click_handler(ClickRecognizerRef recognizer,void *context) {
+  //Initialize a time struct and format it into a second-denominated string.
+  //Could possibly set this up to record in 12h time if the watch is set that way.
+  time_t temp = time(NULL);
+  struct tm *time = localtime(&temp);
+  static char timestamp_buffer[] = "00:00:00";
+  strftime(timestamp_buffer,sizeof("00:00:00"),"%T",time);
+  
+  //Format the addition to the log.
+  static char log_entry_buffer[] = "00:00:00  Shock\n";
+  snprintf(log_entry_buffer,sizeof(log_entry_buffer),"%s  Shock\n",timestamp_buffer);
+  
+  //Append the log to include the new string.
+  strcat(s_resus_log,log_entry_buffer);
+  
+  //Update the resus log.
+  text_layer_set_text(s_resus_log_text_layer,s_resus_log);
+}
+
+static void resus_window_down_click_handler(ClickRecognizerRef recognizer,void *context) {
+  //Initialize a time struct and format it into a second-denominated string.
+  //Could possibly set this up to record in 12h time if the watch is set that way.
+  time_t temp = time(NULL);
+  struct tm *time = localtime(&temp);
+  static char timestamp_buffer[] = "00:00:00";
+  strftime(timestamp_buffer,sizeof("00:00:00"),"%T",time);
+  
+  //Format the addition to the log.
+  static char log_entry_buffer[] = "00:00:00  Rx Admin\n";
+  snprintf(log_entry_buffer,sizeof(log_entry_buffer),"%s  Rx Admin\n",timestamp_buffer);
+  
+  //Append the log to include the new string.
+  strcat(s_resus_log,log_entry_buffer);
+  
+  //Update the resus log.
+  text_layer_set_text(s_resus_log_text_layer,s_resus_log);
+}
+
+static void resus_window_click_config_provider(void *context) {
+  window_single_click_subscribe(BUTTON_ID_UP,resus_window_up_click_handler);
+  window_single_click_subscribe(BUTTON_ID_DOWN,resus_window_down_click_handler);
+}
+
 //Individual drug window handlers.
 static void ind_drug_window_load(Window *window) {
-  APP_LOG(APP_LOG_LEVEL_INFO,"Starting ind_drug_window_load(). Creating scroll layer and setting click configs.");
-
   //Initialize the TextLayer that will contain the drug information.
-  APP_LOG(APP_LOG_LEVEL_INFO,"Creating text layer and setting its values.");
   GRect bounds = layer_get_frame(window_get_root_layer(window));
   s_ind_drug_info_text_layer = text_layer_create(GRect(0,0,bounds.size.w,2000));
   text_layer_set_font(s_ind_drug_info_text_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14));
@@ -130,14 +173,12 @@ static void ind_drug_window_load(Window *window) {
   scroll_layer_set_click_config_onto_window(s_ind_drug_info_scroll_layer,window);
   
   //Trims the scroll box to fit the contents of the text layer. See the scroll layer demo.
-  APP_LOG(APP_LOG_LEVEL_INFO,"Getting sizes and assigning them to variables. Then setting content size of the scroll layer.");
   int16_t scroll_layer_width = (layer_get_frame(window_get_root_layer(window))).size.w;
   int16_t scroll_layer_height = (text_layer_get_content_size(s_ind_drug_info_text_layer)).h + 4;
   scroll_layer_set_content_size(s_ind_drug_info_scroll_layer,GSize(scroll_layer_width,scroll_layer_height));
   
   
   //Child assignment.
-  APP_LOG(APP_LOG_LEVEL_INFO,"Assigning children.");
   scroll_layer_add_child(s_ind_drug_info_scroll_layer,text_layer_get_layer(s_ind_drug_info_text_layer));
   layer_add_child(window_get_root_layer(window),scroll_layer_get_layer(s_ind_drug_info_scroll_layer));
 }
@@ -177,8 +218,6 @@ static void ind_drug_window_create(int index,void *ctx) {
 
 //Drugs window.
 static void drugs_window_load(Window *window) {
-  //Debug statement.
-  //APP_LOG(APP_LOG_LEVEL_INFO,"Drugs window load function activated.");
   //Setup counting integer.
   int drug_menu_count = 0;
   //Drug names.
@@ -262,11 +301,8 @@ static void drugs_window_load(Window *window) {
     .items = s_drugs_menu_items
   };
   
-  //Debug statement.
-  //APP_LOG(APP_LOG_LEVEL_INFO,"About to add the drug layer as a child. Current memory usage is %u. %u free.",heap_bytes_used(),heap_bytes_free());
   s_drugs_menu_layer = simple_menu_layer_create(layer_get_frame(window_get_root_layer(window)),window,s_drugs_menu_sections,DRUGS_NUM_SECTIONS,NULL);
   layer_add_child(window_get_root_layer(window),simple_menu_layer_get_layer(s_drugs_menu_layer));
-  //APP_LOG(APP_LOG_LEVEL_INFO,"Added layer as child.");
 }
 
 static void drugs_window_unload(Window *window) {
@@ -433,30 +469,55 @@ static void labs_window_unload(Window *window) {
 }
 
 //Code Window handlers.
+//!!!! Must set click config provider.
 
 static void code_window_load(Window *window) {
   //Subscribe to the special tick timer service for resuscitation (to make the timer work).
   tick_timer_service_subscribe(SECOND_UNIT,resus_tick_handler);
   
   window_set_background_color(window,GColorBlack);
+  
+  window_set_click_config_provider(s_code_window,resus_window_click_config_provider);
 
   //Resuscitation screen title.
-  s_resus_title_text_layer = text_layer_create(GRect(0,0,144,20));
+  s_resus_title_text_layer = text_layer_create(GRect(0,0,124,20));
   text_layer_set_text(s_resus_title_text_layer,"Resuscitation Mode");
   text_layer_set_text_alignment(s_resus_title_text_layer,GTextAlignmentCenter);
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_title_text_layer));
   
   //Resuscitation timer.
-  s_resus_timer_text_layer = text_layer_create(GRect(0,26,69,20));
+  s_resus_timer_text_layer = text_layer_create(GRect(0,26,60,20));
   text_layer_set_text(s_resus_timer_text_layer,"88:88");
   text_layer_set_text_alignment(s_resus_timer_text_layer,GTextAlignmentCenter);
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_timer_text_layer));
   
   //Resuscitation real-time clock.
-  s_resus_clock_text_layer = text_layer_create(GRect(75,26,69,20));
+  s_resus_clock_text_layer = text_layer_create(GRect(64,26,60,20));
   text_layer_set_text(s_resus_clock_text_layer,"88:88:88");
   text_layer_set_text_alignment(s_resus_clock_text_layer,GTextAlignmentCenter);
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_clock_text_layer));
+  
+  //Resuscitation shock icon. In future, this could be a lightning bolt icon rather than the letter S.
+  s_resus_shock_icon_text_layer = text_layer_create(GRect(128,0,16,55));
+  text_layer_set_text(s_resus_shock_icon_text_layer,"S\nh\nk");
+  text_layer_set_text_alignment(s_resus_shock_icon_text_layer,GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_shock_icon_text_layer));
+  
+  //Resuscitation CPR icon.
+  s_resus_cpr_icon_text_layer = text_layer_create(GRect(128,59,16,50));
+  text_layer_set_text(s_resus_cpr_icon_text_layer,"C\nP\nR");
+  text_layer_set_text_alignment(s_resus_cpr_icon_text_layer,GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_cpr_icon_text_layer));
+  
+  //Resuscitation drug icon. As above, this could be replaced with a graphic.
+  s_resus_drug_icon_text_layer = text_layer_create(GRect(128,113,15,55));
+  text_layer_set_text(s_resus_drug_icon_text_layer,"D\nr\ng");
+  text_layer_set_text_alignment(s_resus_drug_icon_text_layer,GTextAlignmentCenter);
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_drug_icon_text_layer));
+  
+  //Resuscitation TextLayer.
+  s_resus_log_text_layer = text_layer_create(GRect(0,52,123,116));
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_resus_log_text_layer));
 
   resus_update_time();
 }
@@ -466,35 +527,7 @@ static void code_window_unload(Window *window) {
   window_destroy(window);
   s_resus_timer_seconds = 0;
   tick_timer_service_subscribe(SECOND_UNIT,tick_handler);
-}
-
-//Click handlers.
-
-static void main_window_down_click_handler(ClickRecognizerRef recognizer,void *context) {
-  //Common lab values.
-  s_labs_window = window_create();
-  window_set_window_handlers(s_labs_window,(WindowHandlers) {.load=labs_window_load,.unload=labs_window_unload});
-  window_stack_push(s_labs_window,true);
-}
-
-static void main_window_up_click_handler(ClickRecognizerRef recognizer,void *context) {
-  //Common medications.
-  s_drugs_window = window_create();
-  window_set_window_handlers(s_drugs_window,(WindowHandlers) {.load=drugs_window_load,.unload=drugs_window_unload});
-  window_stack_push(s_drugs_window,true);
-}
-
-static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context) {
-  s_code_window = window_create();
-  window_set_fullscreen(s_code_window,true);
-  window_set_window_handlers(s_code_window,(WindowHandlers) {.load=code_window_load,.unload=code_window_unload});
-  window_stack_push(s_code_window,true);
-}
-
-static void main_window_click_config_provider(void *context) {
-  window_single_click_subscribe(BUTTON_ID_DOWN,main_window_down_click_handler);
-  window_single_click_subscribe(BUTTON_ID_UP,main_window_up_click_handler);
-  window_long_click_subscribe(BUTTON_ID_SELECT,0,main_window_select_long_click_handler,NULL);
+  strcpy(s_resus_log,"");
 }
 
 //Battery handler.
@@ -513,6 +546,35 @@ static void battery_handler(BatteryChargeState charge_state) {
 static void battery_bar_update_proc(Layer *layer,GContext *ctx) {
   graphics_context_set_stroke_color(ctx,GColorWhite);
   graphics_draw_line(ctx,GPoint(0,120),GPoint(50,120));
+}
+
+//Main window click handlers.
+static void main_window_up_click_handler(ClickRecognizerRef recognizer,void *context) {
+  //Common medications.
+  s_drugs_window = window_create();
+  window_set_window_handlers(s_drugs_window,(WindowHandlers) {.load=drugs_window_load,.unload=drugs_window_unload});
+  window_stack_push(s_drugs_window,true);
+}
+
+static void main_window_down_click_handler(ClickRecognizerRef recognizer,void *context) {
+  //Common lab values.
+  s_labs_window = window_create();
+  window_set_window_handlers(s_labs_window,(WindowHandlers) {.load=labs_window_load,.unload=labs_window_unload});
+  window_stack_push(s_labs_window,true);
+}
+
+static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context) {
+  s_code_window = window_create();
+  //This is another fullscreen set declaration that must be commented out for compilation with the SDK CLI.
+  //window_set_fullscreen(s_code_window,true);
+  window_set_window_handlers(s_code_window,(WindowHandlers) {.load=code_window_load,.unload=code_window_unload});
+  window_stack_push(s_code_window,true);
+}
+
+static void main_window_click_config_provider(void *context) {
+  window_single_click_subscribe(BUTTON_ID_UP,main_window_up_click_handler);
+  window_single_click_subscribe(BUTTON_ID_DOWN,main_window_down_click_handler);
+  window_long_click_subscribe(BUTTON_ID_SELECT,0,main_window_select_long_click_handler,NULL);
 }
 
 //Main window handler.
@@ -595,7 +657,7 @@ static void init() {
   s_main_window = window_create();
   window_set_window_handlers(s_main_window,(WindowHandlers) {.load=main_window_load,.unload=main_window_unload});
   //Removed this line for compliance with new SDK 3.0. On cloudpebble this isn't necessary to remove.
-  window_set_fullscreen(s_main_window,true);
+  //window_set_fullscreen(s_main_window,true);
   //Display main window on screen on launch.
   window_stack_push(s_main_window,true);
   update_time();
