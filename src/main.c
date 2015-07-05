@@ -13,7 +13,6 @@ static Window *s_drugs_window;
 static Window *s_ind_drug_window;
 static Window *s_labs_window;
 static Window *s_code_window;
-static Layer *s_main_window_battery_bar_layer;
 static TextLayer *s_main_window_params_layer;
 static TextLayer *s_main_window_time_layer;
 static TextLayer *s_main_window_seconds_layer;
@@ -21,6 +20,7 @@ static TextLayer *s_main_window_day_layer;
 static TextLayer *s_main_window_date_layer;
 static TextLayer *s_main_window_month_layer;
 static TextLayer *s_main_window_battery_layer;
+static TextLayer *s_main_window_battery_bar_layer;
 static TextLayer *s_main_window_labs_layer;
 static TextLayer *s_ind_drug_info_text_layer;
 static TextLayer *s_resus_title_text_layer;
@@ -43,11 +43,14 @@ static SimpleMenuItem s_labs_menu_section_coags[LABS_COAG_ROWS];
 static char s_drug_information[1000];
 static char s_resus_log[1000];
 static int s_resus_timer_seconds = 0;
+static int s_battery_bar_width = 0;
+static int s_battery_bar_max_width = 110;
+
+//Early function declarations.
+static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context);
 
 //Ideas?
 //Code Mode.
-//Code mode brings you to a screen with a timer and time-based list of interventions.
-//Up button for drugs, down button for shock?
 //Vibrates 100bpm. Vibration could be toggled by the select button?
 
 //Battery bar does not work yet.
@@ -159,6 +162,11 @@ static void resus_window_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_DOWN,resus_window_down_click_handler);
 }
 
+//Individual drug window click config provider.
+static void ind_drug_window_click_config_provider(void *context) {
+  window_long_click_subscribe(BUTTON_ID_SELECT,0,main_window_select_long_click_handler,NULL);
+}
+
 //Individual drug window handlers.
 static void ind_drug_window_load(Window *window) {
   //Initialize the TextLayer that will contain the drug information.
@@ -171,12 +179,13 @@ static void ind_drug_window_load(Window *window) {
   s_ind_drug_info_scroll_layer = scroll_layer_create(layer_get_frame(window_get_root_layer(window)));
   //Sets the up and down button actions to scrolling actions.
   scroll_layer_set_click_config_onto_window(s_ind_drug_info_scroll_layer,window);
+  //Sets the select button to activate code mode.
+  scroll_layer_set_callbacks(s_ind_drug_info_scroll_layer,(ScrollLayerCallbacks) {.click_config_provider=ind_drug_window_click_config_provider});
   
   //Trims the scroll box to fit the contents of the text layer. See the scroll layer demo.
   int16_t scroll_layer_width = (layer_get_frame(window_get_root_layer(window))).size.w;
   int16_t scroll_layer_height = (text_layer_get_content_size(s_ind_drug_info_text_layer)).h + 4;
   scroll_layer_set_content_size(s_ind_drug_info_scroll_layer,GSize(scroll_layer_width,scroll_layer_height));
-  
   
   //Child assignment.
   scroll_layer_add_child(s_ind_drug_info_scroll_layer,text_layer_get_layer(s_ind_drug_info_text_layer));
@@ -196,19 +205,73 @@ static void ind_drug_window_create(int index,void *ctx) {
   s_ind_drug_window = window_create();
   switch(index) {
     case 0:
-      strcpy(s_drug_information,"Amiodarone\n\nClass: Class III Antiarrhythmic\n\nPharmacodynamics: Prolongs cardiac repolarization.\n\nIV Loading Dose: 150-450mg");
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
+        "Amiodarone",
+        "Class: Class III Antiarrhythmic",
+        "Pharmacodynamics: Prolongs cardiac repolarization. Activity in all four Vaughan-Williams categories.",
+        "Vent. Arrhythmias",
+        "IV Loading Dose: 150mg/10min then 360mg/6hr",
+        "Maintenance IV Rate: 0.5mg/min",
+        "ACLS IV/IO Dose: 300mg STAT then 150mg/10min",
+        "A. Fib",
+        "IV Dose: 125mg/hr for 24hrs");
     break;
     case 1:
-      strcpy(s_drug_information,"Atropine\n\nClass: Muscarinic Anticholinergic\n\nPharmacodynamics: Inhibits parasympathetic activity. Treats bradycardia. No longer recommended for asystole/PEA.\n\nIV Dose: 0.5-1mg push");
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
+        "Atropine",
+        "Class: Muscarinic Anticholinergic",
+        "Pharmacodynamics: Inhibits parasympathetic activity. Positive chronotropic, treats bradycardia. Also a co-antidote with pralidoxime for organophosphate (VX) poisoning.",
+        "ACLS",
+        "Asystole/PEA IV/IO Dose: 1mg push q 3-5 min (max 3mg)",
+        "Bradycardia IV Dose: 0.5mg push q 3-5 min (max 3mg)",
+        "Concomitant use with pralidoxime for organophosphate poisoning.");
     break;
     case 2:
-      strcpy(s_drug_information,"Diltiazem (Cardizem)\n\nClass: Calcium Channel Blocker. Class IV Antiarrhythmic.\n\nPharmacodynamics: Relaxes arterial smooth muscles. Can also prolong cardiac conduction by depressing AV node conductivity. Can convert atrial arrhythmias. Negative inotrope.\n\nIV Dose: 0.25mg/kg initially.");
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
+        "Diltiazem (Cardizem)",
+        "Class: Calcium Channel Blocker. Class IV Antiarrhythmic.",
+        "Pharmacodynamics: Relaxes arterial smooth muscles. Can also prolong cardiac conduction by inhibiting AV node depolarization. Can convert atrial arrhythmias. Negative inotrope, chronotrope & dromotrope. Antihypertensive agent.",
+        "SV Tachyarrhythmia, A.Fib & A.Flutter",
+        "IV Dose: 0.25mg/kg over 2 min, wait 15 mins",
+        "Second IV Dose: 0.35mg/kg over 2 min",
+        "Maintenance IV Rate: 5-15 mg/hr titrated to HR");
     break;
     case 3:
-      strcpy(s_drug_information,"Dobutamine\n\nClass: Inotrope\n\nPharmacodynamics: Beta-1 agonist. Increases cardiac contractility.\n\nIV Dose: 2.5-20mcg/kg/min");
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
+        "Dobutamine",
+        "Class: Inotrope",
+        "Pharmacodynamics: Beta-1 agonist. Increases cardiac contractility. Can also reduce SVR thru vasodilation.",
+        "Cardiac Decompensation, Shock & ACLS",
+        "Initiation IV Rate: 0.5-1 mcg/kg/min",
+        "Maintenance IV Rate: 2-20 mcg/kg/min");
     break;
     case 4:
-      strcpy(s_drug_information,"Dopamine\n\nClass: Inotrope\n\nPharmacodynamics: Dopaminergic agonist.\n\nIV Dose: 0-20mcg/kg/min.");
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
+        "Dopamine",
+        "Class: Inotrope",
+        "Pharmacodynamics: Dopaminergic and beta-1 adrenergic agonist. Has alpha adrenergic activity at high doses.",
+        "Shock & CPR",
+        "Initiation IV Rate: 2-5 mcg/kg/min.",
+        "Maintenance IV Rate: 2-20 mcg/kg/min",
+        "Titration Instructions: Assess q10-30 min and adjust 1-4 mcg/kg/min at a time.",
+        "Severe Illness",
+        "Max IV Rate: 50mcg/kg/min");
+    break;
+    case 5:
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s",
+        "Fentanyl",
+        "Class: Synthetic Opioid",
+        "Pharmacodynamics: µ-opioid receptor agonist.",
+        "Dose extremely variable and should be adapted to patient tolerance and requirements.");
+    break;
+    case 6:
+      strcpy(s_drug_information,"Heparin\n\nClass: Anticoagulant\n\nPharmacodynamics: Factor Xa antagonist.\n\nIV Dose: u/kg bolus, u/kg/hr infusion.");
+    break;
+    case 7:
+      strcpy(s_drug_information,"Levophed\n\nClass: Vasopressor\n\nPharmacodynamics: a-adrenergic receptor agonist. Causes systemic vasoconstriction thereby increasing SVR and BP.\n\nIV Dose: mcg/min");
+    break;
+    case 8:
+      strcpy(s_drug_information,"Midazolam\n\nClass: Sedative\n\nPharmacodynamics: Benzodiazepine. GABA receptor agonist.\n\nIV Dose: ");
     break;
   }
   window_set_window_handlers(s_ind_drug_window,(WindowHandlers) {.load=ind_drug_window_load,.unload=ind_drug_window_unload});
@@ -532,7 +595,7 @@ static void code_window_unload(Window *window) {
 
 //Battery handler.
 static void battery_handler(BatteryChargeState charge_state) {
-  static char s_battery_buffer[4];
+  static char s_battery_buffer[5];
   
   if(charge_state.is_charging) {
     snprintf(s_battery_buffer,sizeof(s_battery_buffer),"C%d",charge_state.charge_percent);
@@ -541,11 +604,10 @@ static void battery_handler(BatteryChargeState charge_state) {
   }
   
   text_layer_set_text(s_main_window_battery_layer,s_battery_buffer);
-}
-
-static void battery_bar_update_proc(Layer *layer,GContext *ctx) {
-  graphics_context_set_stroke_color(ctx,GColorWhite);
-  graphics_draw_line(ctx,GPoint(0,120),GPoint(50,120));
+  
+  //Update battery bar width.
+  s_battery_bar_width = ((float)charge_state.charge_percent/100.0)*(float)s_battery_bar_max_width;
+  text_layer_set_size(s_main_window_battery_bar_layer,GSize(s_battery_bar_width,10));
 }
 
 //Main window click handlers.
@@ -566,7 +628,7 @@ static void main_window_down_click_handler(ClickRecognizerRef recognizer,void *c
 static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context) {
   s_code_window = window_create();
   //This is another fullscreen set declaration that must be commented out for compilation with the SDK CLI.
-  //window_set_fullscreen(s_code_window,true);
+  window_set_fullscreen(s_code_window,true);
   window_set_window_handlers(s_code_window,(WindowHandlers) {.load=code_window_load,.unload=code_window_unload});
   window_stack_push(s_code_window,true);
 }
@@ -589,8 +651,8 @@ static void main_window_load(Window *window) {
   s_main_window_day_layer = text_layer_create(GRect(0,91,30,20));
   s_main_window_date_layer = text_layer_create(GRect(36,91,22,20));
   s_main_window_month_layer = text_layer_create(GRect(64,91,80,20));
-  s_main_window_battery_layer = text_layer_create(GRect(119,112,25,15));
-  s_main_window_battery_bar_layer = layer_create(GRect(0,112,118,15));
+  s_main_window_battery_layer = text_layer_create(GRect(113,112,31,15));
+  s_main_window_battery_bar_layer = text_layer_create(GRect(0,117,s_battery_bar_max_width,10));
   s_main_window_labs_layer = text_layer_create(GRect(0,148,144,20));
   //Params formatting.
   text_layer_set_text(s_main_window_params_layer,"Rx");
@@ -617,8 +679,6 @@ static void main_window_load(Window *window) {
   text_layer_set_font(s_main_window_battery_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14));
   text_layer_set_text_color(s_main_window_battery_layer,GColorWhite);
   text_layer_set_text_alignment(s_main_window_battery_layer,GTextAlignmentRight);
-  //Battery bar formatting.
-  layer_set_update_proc(s_main_window_battery_bar_layer,battery_bar_update_proc);
   //Labs formatting.
   text_layer_set_text(s_main_window_labs_layer,"Labs");
   text_layer_set_text_alignment(s_main_window_labs_layer,GTextAlignmentRight);
@@ -632,7 +692,7 @@ static void main_window_load(Window *window) {
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_date_layer));
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_month_layer));
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_battery_layer));
-  layer_add_child(window_get_root_layer(window),s_main_window_battery_bar_layer);
+  layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_battery_bar_layer));
   layer_add_child(window_get_root_layer(window),text_layer_get_layer(s_main_window_labs_layer));
   
   //Get battery state.
@@ -647,7 +707,7 @@ static void main_window_unload(Window *window) {
   text_layer_destroy(s_main_window_date_layer);
   text_layer_destroy(s_main_window_month_layer);
   text_layer_destroy(s_main_window_battery_layer);
-  layer_destroy(s_main_window_battery_bar_layer);
+  text_layer_destroy(s_main_window_battery_bar_layer);
   text_layer_destroy(s_main_window_labs_layer);
 }
 
@@ -657,7 +717,7 @@ static void init() {
   s_main_window = window_create();
   window_set_window_handlers(s_main_window,(WindowHandlers) {.load=main_window_load,.unload=main_window_unload});
   //Removed this line for compliance with new SDK 3.0. On cloudpebble this isn't necessary to remove.
-  //window_set_fullscreen(s_main_window,true);
+  window_set_fullscreen(s_main_window,true);
   //Display main window on screen on launch.
   window_stack_push(s_main_window,true);
   update_time();
@@ -665,6 +725,7 @@ static void init() {
 
 static void deinit() {
   tick_timer_service_unsubscribe();
+  battery_state_service_unsubscribe();
   window_destroy(s_main_window);
 }
 
