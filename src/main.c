@@ -265,10 +265,23 @@ static void ind_drug_window_create(int index,void *ctx) {
         "Dose extremely variable and should be adapted to patient tolerance and requirements.");
     break;
     case 6:
-      strcpy(s_drug_information,"Heparin\n\nClass: Anticoagulant\n\nPharmacodynamics: Factor Xa antagonist.\n\nIV Dose: u/kg bolus, u/kg/hr infusion.");
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
+      	"Heparin",
+      	"Class: Anticoagulant",
+      	"Pharmacodynamics: Factor Xa antagonist.",
+      	"Prophylactic Anticoagulation",
+      	"SC Loading Dose: 333u/kg",
+      	"SC Maintenance Dose: 250u/kg q12h",
+      	"IV Loading Dose: 5000u",
+      	"IV Maintenance Rate: 833-1666u/hr");
     break;
     case 7:
-      strcpy(s_drug_information,"Levophed\n\nClass: Vasopressor\n\nPharmacodynamics: a-adrenergic receptor agonist. Causes systemic vasoconstriction thereby increasing SVR and BP.\n\nIV Dose: mcg/min");
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s",
+      	"Norepinephrine",
+      	"Class: Vasopressor",
+      	"Pharmacodynamics: alpha-adrenergic receptor agonist. Causes systemic vasoconstriction thereby increasing SVR and BP.",
+      	"IV Dose Warning: Dosages can be expressed in terms of free norepinephrine or norepinephrine bitartrate. Below doses are expressed as free norepinephrine (1mg free norepi = 2mg norepi bitartrate).",
+      	"mcg/min");
     break;
     case 8:
       strcpy(s_drug_information,"Midazolam\n\nClass: Sedative\n\nPharmacodynamics: Benzodiazepine. GABA receptor agonist.\n\nIV Dose: ");
@@ -628,7 +641,7 @@ static void main_window_down_click_handler(ClickRecognizerRef recognizer,void *c
 static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context) {
   s_code_window = window_create();
   //This is another fullscreen set declaration that must be commented out for compilation with the SDK CLI.
-  window_set_fullscreen(s_code_window,true);
+  //window_set_fullscreen(s_code_window,true);
   window_set_window_handlers(s_code_window,(WindowHandlers) {.load=code_window_load,.unload=code_window_unload});
   window_stack_push(s_code_window,true);
 }
@@ -717,7 +730,7 @@ static void init() {
   s_main_window = window_create();
   window_set_window_handlers(s_main_window,(WindowHandlers) {.load=main_window_load,.unload=main_window_unload});
   //Removed this line for compliance with new SDK 3.0. On cloudpebble this isn't necessary to remove.
-  window_set_fullscreen(s_main_window,true);
+  //window_set_fullscreen(s_main_window,true);
   //Display main window on screen on launch.
   window_stack_push(s_main_window,true);
   update_time();
