@@ -1,31 +1,39 @@
 {
-  "appKeys": {},
-  "capabilities": [
-    ""
-  ],
-  "companyName": "david.lorne.olmstead@gmail.com",
-  "longName": "Critical Care Companion",
-  "projectType": "native",
-  "resources": {
-    "media": [
-      {
-        "file": "images/Clinical App Icon.png",
-        "menuIcon": true,
-        "name": "LOGO_IMAGE",
-        "type": "png"
-      }
-    ]
-  },
-  "sdkVersion": "3",
-  "shortName": "ICU Companion",
-  "uuid": "370645dd-fc04-4b7f-acb8-520280bc2690",
-  "versionCode": 1,
-  "versionLabel": "0.1",
-  "watchapp": {
-    "watchface": false
-  },
-  "targetPlatforms": [
-    "aplite",
-    "basalt"
-  ]
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "david.lorne.olmstead@gmail.com",
+    "longName": "Critical Care Companion",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/Clinical App Icon.png",
+                "menuIcon": true,
+                "name": "LOGO_IMAGE",
+                "type": "png"
+            },
+            {
+                "characterRegex": "[0-9:]",
+                "file": "fonts/cubellan_italic.ttf",
+                "name": "FONT_CUBELLAN_ITALIC_20",
+                "type": "font"
+            },
+            {
+                "characterRegex": "[0-9:]",
+                "file": "fonts/cubellan_italic.ttf",
+                "name": "FONT_CUBELLAN_ITALIC_42",
+                "type": "font"
+            }
+        ]
+    },
+    "sdkVersion": "2",
+    "shortName": "Critical Care",
+    "uuid": "370645dd-fc04-4b7f-acb8-520280bc2690",
+    "versionCode": 1,
+    "versionLabel": "0.1",
+    "watchapp": {
+        "watchface": false
+    }
 }

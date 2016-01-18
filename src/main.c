@@ -1,10 +1,10 @@
 #include <pebble.h>
 
 #define DRUGS_NUM_SECTIONS 1
-#define DRUGS_NUM_ITEMS 17
+#define DRUGS_NUM_ITEMS 18
 #define LABS_NUM_SECTIONS 4
 #define LABS_BLOOD_ROWS 8
-#define LABS_LYTE_ROWS 10
+#define LABS_LYTE_ROWS 11
 #define LABS_MOL_ROWS 8
 #define LABS_COAG_ROWS 3
   
@@ -13,6 +13,8 @@ static Window *s_drugs_window;
 static Window *s_ind_drug_window;
 static Window *s_labs_window;
 static Window *s_code_window;
+static GFont *s_font_cubellan_italic_20;
+static GFont *s_font_cubellan_italic_42;
 static TextLayer *s_main_window_params_layer;
 static TextLayer *s_main_window_time_layer;
 static TextLayer *s_main_window_seconds_layer;
@@ -49,11 +51,21 @@ static int s_battery_bar_max_width = 110;
 //Early function declarations.
 static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context);
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// This is Critical Care Companion version 0.1 (early alpha). All features are still in active  //
+// development. All data will require further validation before this can be put into clinical   //
+// use. A David Olmstead Project.                                                               //
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
 //Ideas?
 //Code Mode.
 //Vibrates 100bpm. Vibration could be toggled by the select button?
 
-//Battery bar does not work yet.
+//Reduce clock font margin so that the font size can be bigger.
+
+//Have blood gas and molecules be separate menu headers.
+
+//Maybe try to have drug data as a separate file of some sort.
 
 //Display resolution: 144x168.
 
@@ -84,6 +96,11 @@ static void update_time() {
   text_layer_set_text(s_main_window_date_layer,date_buffer);
   text_layer_set_text(s_main_window_month_layer,month_buffer);
   text_layer_set_text(s_main_window_day_layer,day_buffer);
+  
+  //Update textlayers to be the correct size.
+  //GSize time_layer_content_size;
+  //time_layer_content_size = text_layer_get_content_size(s_main_window_time_layer);
+  //text_layer_set_size(s_main_window_time_layer,time_layer_content_size);
 }
 
 static void resus_update_time() {
@@ -205,6 +222,11 @@ static void ind_drug_window_create(int index,void *ctx) {
   s_ind_drug_window = window_create();
   switch(index) {
     case 0:
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s",
+        "Disclaimer",
+        "The information in this app was sourced from drug monographs and is believed to be accurate and safe. However, this should not be taken as prescriptive advice in clinical treatment. Always refer to evidence-based guidelines when prescribing or administering medication.");
+    break;
+    case 1:
       snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
         "Amiodarone",
         "Class: Class III Antiarrhythmic",
@@ -216,7 +238,7 @@ static void ind_drug_window_create(int index,void *ctx) {
         "A. Fib",
         "IV Dose: 125mg/hr for 24hrs");
     break;
-    case 1:
+    case 2:
       snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
         "Atropine",
         "Class: Muscarinic Anticholinergic",
@@ -226,7 +248,7 @@ static void ind_drug_window_create(int index,void *ctx) {
         "Bradycardia IV Dose: 0.5mg push q 3-5 min (max 3mg)",
         "Concomitant use with pralidoxime for organophosphate poisoning.");
     break;
-    case 2:
+    case 3:
       snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
         "Diltiazem (Cardizem)",
         "Class: Calcium Channel Blocker. Class IV Antiarrhythmic.",
@@ -236,7 +258,7 @@ static void ind_drug_window_create(int index,void *ctx) {
         "Second IV Dose: 0.35mg/kg over 2 min",
         "Maintenance IV Rate: 5-15 mg/hr titrated to HR");
     break;
-    case 3:
+    case 4:
       snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
         "Dobutamine",
         "Class: Inotrope",
@@ -245,7 +267,7 @@ static void ind_drug_window_create(int index,void *ctx) {
         "Initiation IV Rate: 0.5-1 mcg/kg/min",
         "Maintenance IV Rate: 2-20 mcg/kg/min");
     break;
-    case 4:
+    case 5:
       snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
         "Dopamine",
         "Class: Inotrope",
@@ -257,14 +279,15 @@ static void ind_drug_window_create(int index,void *ctx) {
         "Severe Illness",
         "Max IV Rate: 50mcg/kg/min");
     break;
-    case 5:
-      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s",
+    case 6:
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n%s",
         "Fentanyl",
         "Class: Synthetic Opioid",
         "Pharmacodynamics: µ-opioid receptor agonist.",
-        "Dose extremely variable and should be adapted to patient tolerance and requirements.");
+        "Dose extremely variable and should be adapted to patient tolerance and requirements.",
+        "Common Values: 25-100 mcg/hr.");
     break;
-    case 6:
+    case 7:
       snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s",
       	"Heparin",
       	"Class: Anticoagulant",
@@ -275,16 +298,26 @@ static void ind_drug_window_create(int index,void *ctx) {
       	"IV Loading Dose: 5000u",
       	"IV Maintenance Rate: 833-1666u/hr");
     break;
-    case 7:
+    case 8:
       snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s\n\n%s",
-      	"Norepinephrine",
+      	"Norepinephrine (Levophed)",
       	"Class: Vasopressor",
       	"Pharmacodynamics: alpha-adrenergic receptor agonist. Causes systemic vasoconstriction thereby increasing SVR and BP.",
       	"IV Dose Warning: Dosages can be expressed in terms of free norepinephrine or norepinephrine bitartrate. Below doses are expressed as free norepinephrine (1mg free norepi = 2mg norepi bitartrate).",
-      	"mcg/min");
+      	"0.5 - 30 mcg/min");
     break;
-    case 8:
-      strcpy(s_drug_information,"Midazolam\n\nClass: Sedative\n\nPharmacodynamics: Benzodiazepine. GABA receptor agonist.\n\nIV Dose: ");
+    case 9:
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s\n\n%s",
+        "Midazolam",
+        "Class: Sedative",
+        "Pharmacodynamics: Benzodiazepine. GABA receptor agonist. Has amnestic properties for approximately 20 minutes.",
+        "IV Dose: ");
+    break;
+    case 10:
+      snprintf(s_drug_information,sizeof(s_drug_information),"%s\n\n%s\n\n%s",
+        "PRBCs",
+        "Class: Hemoglobin Replacement, Volume Expander",
+        "Pharmacodynamics: Contains red blood cells, which replace those lost by haemorrhage or haemolysis.");
     break;
   }
   window_set_window_handlers(s_ind_drug_window,(WindowHandlers) {.load=ind_drug_window_load,.unload=ind_drug_window_unload});
@@ -297,6 +330,11 @@ static void drugs_window_load(Window *window) {
   //Setup counting integer.
   int drug_menu_count = 0;
   //Drug names.
+  s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
+    .title = "Disclaimer",
+    .subtitle = "Read Before Use",
+    .callback = ind_drug_window_create
+  };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
     .title = "Amiodarone",
     .callback = ind_drug_window_create
@@ -356,6 +394,7 @@ static void drugs_window_load(Window *window) {
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
     .title = "PRBCs",
+    .subtitle = "Packed Red Blood Cells",
     .callback = ind_drug_window_create
   };
   s_drugs_menu_items[drug_menu_count++] = (SimpleMenuItem) {
@@ -444,19 +483,23 @@ static void labs_window_load(Window *window) {
   };
   s_labs_menu_section_lytes[lyte_menu_count++] = (SimpleMenuItem) {
     .title = "Creatinine",
-    .subtitle = "(F) 45-90 (M) 60-110 umol/L"
+    .subtitle = "45-110 umol/L"
   };
   s_labs_menu_section_lytes[lyte_menu_count++] = (SimpleMenuItem) {
     .title = "Glucose",
-    .subtitle = "(ND) 4-7 (D) 5-10 mmol/L"
+    .subtitle = "4-7 mmol/L"
   };
   s_labs_menu_section_lytes[lyte_menu_count++] = (SimpleMenuItem) {
-    .title = "Blood Urea Nitrogen",
+    .title = "Urea",
     .subtitle = "3-7 mmol/L"
   };
   s_labs_menu_section_lytes[lyte_menu_count++] = (SimpleMenuItem) {
-    .title = "Calcium",
+    .title = "Free Calcium",
     .subtitle = "2-2.6 mmol/L?"
+  };
+  s_labs_menu_section_lytes[lyte_menu_count++] = (SimpleMenuItem) {
+    .title = "Ionized Calcium",
+    .subtitle = "1.15-1.30 mmol/L"
   };
   s_labs_menu_section_lytes[lyte_menu_count++] = (SimpleMenuItem) {
     .title = "Magnesium",
@@ -505,16 +548,16 @@ static void labs_window_load(Window *window) {
   //Coagulation values.
   int coag_menu_count = 0;
   s_labs_menu_section_coags[coag_menu_count++] = (SimpleMenuItem) {
-    .title = "Prothrombin Time",
+    .title = "PT",
     .subtitle = "11-14 s"
   };
   s_labs_menu_section_coags[coag_menu_count++] = (SimpleMenuItem) {
-    .title = "Partial Thromboplastin Time",
+    .title = "PTT",
     .subtitle = "25-35 s"
   };
   s_labs_menu_section_coags[coag_menu_count++] = (SimpleMenuItem) {
-    .title = "International Normalized Ratio",
-    .subtitle = "1.0"
+    .title = "INR",
+    .subtitle = "0.9-1.1"
   };
     
   //Section headers.
@@ -524,7 +567,7 @@ static void labs_window_load(Window *window) {
     .items = s_labs_menu_section_bloods
   };
   s_labs_menu_sections[1] = (SimpleMenuSection) {
-    .title = "SMA10",
+    .title = "Electrolytes",
     .num_items = LABS_LYTE_ROWS,
     .items = s_labs_menu_section_lytes
   };
@@ -532,6 +575,11 @@ static void labs_window_load(Window *window) {
     .title = "Molecules & Gases",
     .num_items = LABS_MOL_ROWS,
     .items = s_labs_menu_section_mols
+  };
+  s_labs_menu_sections[3] = (SimpleMenuSection) {
+    .title = "Coagulation",
+    .num_items = LABS_COAG_ROWS,
+    .items = s_labs_menu_section_coags
   };
   
   s_labs_menu_layer = simple_menu_layer_create(layer_get_frame(window_get_root_layer(window)),window,s_labs_menu_sections,LABS_NUM_SECTIONS,NULL);
@@ -641,7 +689,7 @@ static void main_window_down_click_handler(ClickRecognizerRef recognizer,void *c
 static void main_window_select_long_click_handler(ClickRecognizerRef recognizer,void *context) {
   s_code_window = window_create();
   //This is another fullscreen set declaration that must be commented out for compilation with the SDK CLI.
-  //window_set_fullscreen(s_code_window,true);
+  window_set_fullscreen(s_code_window,true);
   window_set_window_handlers(s_code_window,(WindowHandlers) {.load=code_window_load,.unload=code_window_unload});
   window_stack_push(s_code_window,true);
 }
@@ -657,28 +705,36 @@ static void main_window_click_config_provider(void *context) {
 static void main_window_load(Window *window) {
   window_set_background_color(window,GColorBlack);
   window_set_click_config_provider(s_main_window,main_window_click_config_provider);
+  //Load custom font.
+  s_font_cubellan_italic_20 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_CUBELLAN_ITALIC_20));
+  s_font_cubellan_italic_42 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_CUBELLAN_ITALIC_42));
   //Create TextLayers.
   s_main_window_params_layer = text_layer_create(GRect(0,0,144,20));
-  s_main_window_time_layer = text_layer_create(GRect(0,35,114,50));
-  s_main_window_seconds_layer = text_layer_create(GRect(120,50,24,35));
+  s_main_window_time_layer = text_layer_create(GRect(0,37,111,48));
+  s_main_window_seconds_layer = text_layer_create(GRect(117,60,27,25));
   s_main_window_day_layer = text_layer_create(GRect(0,91,30,20));
   s_main_window_date_layer = text_layer_create(GRect(36,91,22,20));
   s_main_window_month_layer = text_layer_create(GRect(64,91,80,20));
   s_main_window_battery_layer = text_layer_create(GRect(113,112,31,15));
   s_main_window_battery_bar_layer = text_layer_create(GRect(0,117,s_battery_bar_max_width,10));
   s_main_window_labs_layer = text_layer_create(GRect(0,148,144,20));
-  //Params formatting.
+  //Drugs formatting.
   text_layer_set_text(s_main_window_params_layer,"Rx");
   text_layer_set_text_alignment(s_main_window_params_layer,GTextAlignmentRight);
   text_layer_set_background_color(s_main_window_params_layer,GColorBlack);
   text_layer_set_text_color(s_main_window_params_layer,GColorWhite);
   //Time formatting.
-  text_layer_set_text_alignment(s_main_window_time_layer,GTextAlignmentCenter);
-  text_layer_set_font(s_main_window_time_layer,fonts_get_system_font(FONT_KEY_BITHAM_42_LIGHT));
+  text_layer_set_background_color(s_main_window_time_layer,GColorWhite);
+  text_layer_set_text_color(s_main_window_time_layer,GColorBlack);
+  text_layer_set_text_alignment(s_main_window_time_layer,GTextAlignmentLeft);
+  text_layer_set_font(s_main_window_time_layer,s_font_cubellan_italic_42/*fonts_get_system_font(FONT_KEY_BITHAM_42_LIGHT)*/);
+  //text_layer_set_text(s_main_window_time_layer,"88:88");
   //Seconds formatting.
+  text_layer_set_background_color(s_main_window_seconds_layer,GColorWhite);
+  text_layer_set_text_color(s_main_window_seconds_layer,GColorBlack);
   text_layer_set_text_alignment(s_main_window_seconds_layer,GTextAlignmentCenter);
-  text_layer_set_font(s_main_window_seconds_layer,fonts_get_system_font(FONT_KEY_GOTHIC_24));
-  text_layer_set_text(s_main_window_seconds_layer,"00");
+  text_layer_set_font(s_main_window_seconds_layer,s_font_cubellan_italic_20/*fonts_get_system_font(FONT_KEY_GOTHIC_24)*/);
+  //text_layer_set_text(s_main_window_seconds_layer,"88");
   //Day formatting.
   text_layer_set_text_alignment(s_main_window_day_layer,GTextAlignmentCenter);
   text_layer_set_font(s_main_window_day_layer,fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
@@ -722,6 +778,8 @@ static void main_window_unload(Window *window) {
   text_layer_destroy(s_main_window_battery_layer);
   text_layer_destroy(s_main_window_battery_bar_layer);
   text_layer_destroy(s_main_window_labs_layer);
+  fonts_unload_custom_font(s_font_cubellan_italic_20);
+  fonts_unload_custom_font(s_font_cubellan_italic_42);
 }
 
 static void init() {
@@ -730,7 +788,7 @@ static void init() {
   s_main_window = window_create();
   window_set_window_handlers(s_main_window,(WindowHandlers) {.load=main_window_load,.unload=main_window_unload});
   //Removed this line for compliance with new SDK 3.0. On cloudpebble this isn't necessary to remove.
-  //window_set_fullscreen(s_main_window,true);
+  window_set_fullscreen(s_main_window,true);
   //Display main window on screen on launch.
   window_stack_push(s_main_window,true);
   update_time();
